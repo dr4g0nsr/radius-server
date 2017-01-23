@@ -18,4 +18,4 @@ In my test machine which is i5 i can process 30.000 req/sec on one core and usin
 
 **Why didn't you run threaded server?**
 
-Tried but didn't work due to some problem (probalby with threading system) that i cannot solve.
+Tried but didn't work due to some problem (probably with threading system) that i cannot solve.
