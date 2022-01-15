@@ -115,7 +115,7 @@ class radius_server {
     protected $thread_array = [];
 
     /**
-     * Initialize server, bind ip and load dictionary
+     * Initialize server, bind IP and load dictionary
      * 
      * @param type $serverip
      * @param type $serverport
@@ -178,14 +178,34 @@ class radius_server {
     }
 
     /**
+     * Iterate all found attributes and store it into var
+     * 
+     * @param array $vendor_radius_attributes Attributes read from dictionary files
+     */
+    private function setup_attributes($vendor_radius_attributes) {
+        foreach ($this->vendor_radius_attributes as $attr => $vars) {
+            if (isset($vars["id"])) {
+                $this->vendor_radius_attributes_reverse[$vars["id"]] = $vars;
+                continue;
+            }
+            if (is_array($vars)) {
+                foreach ($vars as $id => $val) {
+                    $this->vendor_radius_attributes_reverse[$id] = $val;
+                }
+                continue;
+            }
+        }
+    }
+
+    /**
      * Reverse lookup dictionary
+     * 
+     * Used to parse format from dictionary where is stored in val - key order
      */
     public function reverse_dictionary() {
         $this->radius_attributes_reverse = array_flip($this->radius_attributes);    // much faster to lookup for reverse attr
         $this->radius_codes_reverse = array_flip($this->radius_codes);  // much faster to lookup for reverse codes
-        foreach ($this->vendor_radius_attributes as $attr => $vars) {
-            $this->vendor_radius_attributes_reverse[$vars["id"]] = $vars;
-        }
+        $this->setup_attributes($this->vendor_radius_attributes);
     }
 
     /**
@@ -195,7 +215,8 @@ class radius_server {
      * @return boolean Return true on loaded file, otherwise false
      */
     public function load_dictionary($file = "dictionary") {
-        if (file_exists(__DIR__ . "/dictionary/" . $file)) {
+        $dictionaryPath = __DIR__ . DIRECTORY_SEPARATOR . "dictionary" . DIRECTORY_SEPARATOR . $file;
+        if (file_exists($dictionaryPath)) {
             $this->log("Load " . $file, RADIUS_BASIC);
             $dict = file_get_contents(__DIR__ . "/dictionary/" . $file);
             $dict_lines = explode("\n", $dict);
@@ -205,7 +226,7 @@ class radius_server {
                     continue;
                 } else
                 if (substr($dict_item, 0, 8) == "\$INCLUDE") {
-                    $dict_file = substr($dict_item, 9);
+                    $dict_file = trim(substr($dict_item, 9));
                     $this->load_dictionary($dict_file);
                 } else {
                     $dict_item = str_replace(chr(9), " ", $dict_item);  // convert tab to space
@@ -256,7 +277,7 @@ class radius_server {
             if (strlen($hexnum) < 2) {
                 $hexnum = "0" . $hexnum;
             }
-            $hex.= $hexnum;
+            $hex .= $hexnum;
         }
         return $hex;
     }
@@ -433,7 +454,7 @@ class radius_server {
                 "value" => $value,
                 "array_value" => $array_value,
             ];
-            $csize+=$len;
+            $csize += $len;
             if (RADIUS_INFO == $this->debug_level) {  // debug on, write messages
                 $value = $this->hex_dump($value);
             }
@@ -508,7 +529,7 @@ class radius_server {
      */
     public final function process_request($pkt, $remote_ip, $remote_port) {
 
-        $pkta = [   // make packet structure
+        $pkta = [// make packet structure
             "code" => ord($pkt[0]),
             "id" => ord($pkt[1]),
             "len" => (ord($pkt[2]) * 255) + ord($pkt[3]),
@@ -522,13 +543,9 @@ class radius_server {
         }
 
         $auth = substr($pkt, 4, 16);
-
         $avps = substr($pkt, 20);
-
         $attr = $this->decode_attr($pkta["code"], $avps, $pkta["len"] - 20);
-
         $this->log("Reply: ", RADIUS_INFO);
-
         $this->process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port);
 
         return true;
