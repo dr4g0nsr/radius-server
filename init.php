@@ -13,14 +13,7 @@
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
-const RADIUS_SERVER_BASE = __DIR__;
-
-require_once __DIR__ . DIRECTORY_SEPARATOR . "init.php";
-
-$radius = new \server\RadiusServer;
-$radius->debug_level = RADIUS_DEBUG;
-$radius->debug_level = RADIUS_BASIC;
-$radius->load_dictionary();
-$radius->reverse_dictionary();
-$radius->__init();
-$radius->radius_run();
+// Autoloader
+spl_autoload_register(function ($class_name) {
+    require_once RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'classes' . DIRECTORY_SEPARATOR . $class_name . '.php';
+});
