@@ -15,12 +15,6 @@
 
 namespace server;
 
-DEFINE("RADIUS_OFF", 0);
-DEFINE("RADIUS_BASIC", 1);
-DEFINE("RADIUS_CONNECTION", 2);
-DEFINE("RADIUS_INFO", 3);
-DEFINE("RADIUS_DEBUG", 4);
-
 /**
  * Radius server class
  * 
@@ -115,17 +109,11 @@ class RadiusServer {
     private $requests_max = 0;
     public $debug_level = RADIUS_BASIC;   // 0=off, 1=basic, 2=connection, 3=info, 4=debug
     private $log_file = FALSE;   // where to save logs
-    public $logins = [
-        "username" => [
-            "password" => "password",
-            "disabled" => 0,
-            "upload" => 0,
-            "download" => 0,
-            "expire" => NULL,
-        ]
-    ];
-    protected $threads = FALSE; // boolean to flag thread usage
+    private $authMethod = NULL;
+    private $authClass = NULL;
+    protected $threads = FALSE; // boolean to flag thread usage, don't do it
     protected $thread_array = [];
+    protected $loginInfo;
 
     /**
      * Initialize server, bind IP and load dictionary
@@ -141,11 +129,11 @@ class RadiusServer {
         }
 
         /*
-        if (class_exists("Thread")) {
-            $this->log("Threading available", RADIUS_BASIC);
-            require __DIR__ . "/radius_threads.php";
-            //$this->threads = true;    // disabled threads - some very strange things happens
-        }
+          if (class_exists("Thread")) {
+          $this->log("Threading available", RADIUS_BASIC);
+          require __DIR__ . "/radius_threads.php";
+          //$this->threads = true;    // disabled threads - some very strange things happens
+          }
          */
 
         $this->log("Running RADIUS server {$this->serverip} : {$this->serverport} on PHP " . PHP_VERSION . "", RADIUS_BASIC);    // server is running
@@ -174,13 +162,13 @@ class RadiusServer {
     }
 
     /**
-     * Log message
+     * Log message to either file or screen, depending on settings
      * 
      * @param string $message Message to log/show
      * @param int    $debug Debug to match this message
      */
     protected function log($message, $debug = NULL) {
-        if ($debug === NULL || $debug <= $this->debug_level) {  // debug on, write messages
+        if ($debug === NULL || $this->debug_level >= $debug) {  // debug on, write messages
             if ($this->log_file) {  // log file defined?
                 $r = file_put_contents($this->log_file, $message, FILE_APPEND); // add to log
                 if ($r === FALSE) { // write to log failed?
@@ -364,13 +352,19 @@ class RadiusServer {
      * into array if db is in some reasonable length
      * 
      * @param string $username Username for user auth
-     * @return boolean True if auth succeded false otherwise
+     * @return string Password for user, in plaintext
      */
-    public function login_check($username) {
-        if (!@$this->logins[$username] || !@$this->logins[$username]["password"]) {
+    public function loginCheck($username) {
+        if (!$this->authClass) {
+            $authClass = "\\auth\\$this->authMethod";
+            $this->authClass = new $authClass();
+        }
+        $this->loginInfo = $this->authClass->getLoginInfo($username);
+        if ($this->loginInfo === false) {
             return false;
         }
-        return $this->logins[$username]["password"];
+
+        return $this->loginInfo['password'];
     }
 
     /**
@@ -381,8 +375,8 @@ class RadiusServer {
      * @param array $attr Array of attributes
      * @return boolean True if logged in successfully
      */
-    private function login_match($auth, $attr) {
-        $password = $this->login_check($attr["User-Name"]["value"]);
+    private function loginMatch($auth, $attr) {
+        $password = $this->loginCheck($attr["User-Name"]["value"]);
         if (!$password) {    // login not found
             $this->log("No login for " . $attr["User-Name"]["value"], RADIUS_DEBUG);
             return false;
@@ -429,7 +423,7 @@ class RadiusServer {
                 $value = $this->encode_ip($value);
             default:
         }
-        $code = $this->radius_attributes_reverse[$attribute];
+        $code = @$this->radius_attributes_reverse[$attribute];
         if (!$code) {
             $this->log("   ******* Attribute {$attribute} unknown! *******", RADIUS_INFO);
             return false;
@@ -505,11 +499,17 @@ class RadiusServer {
 
         switch ($pkta["code"]) {    // Request code
             case $this->radius_codes_reverse["Access-Request"]:
-                $password_match = $this->login_match($auth, $attr);
+                $password_match = $this->loginMatch($auth, $attr);
                 if ($password_match) {
                     // Access-Accept
                     $this->log("Reply: Access-Accept", RADIUS_INFO);
-                    $reply = $this->set_attribute("Framed-IP-Address", "1.2.3.4");
+                    $reply = '';
+                    foreach ($this->loginInfo as $attr => $val) {
+                        if ($attr == 'password') {
+                            continue;
+                        }
+                        $reply .= $this->set_attribute($attr, $val);
+                    }
                     $response_code = $this->radius_codes_reverse["Access-Accept"];   //access-accept
                     $response_length = 3 + 16 + 1 + strlen($reply);
                     $response_string = pack("CCna16a" . strlen($reply) . "a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $reply, $this->secret);
@@ -566,15 +566,23 @@ class RadiusServer {
         return true;
     }
 
+    private function parseConfig(array $config) {
+        $this->receive_buffer = (int) $config['receive_buffer'];
+        $this->serverip = $config['serverip'];
+        $this->serverport = $config['serverport'];
+        $this->secret = $config['secret'];
+        $this->authMethod = $config['auth_method'];
+    }
+
     /**
-     * 
      * MAIN RADIUS LOOP
      * Waits for packet on initialized socket
      * and process request (which replies)
      * It is run in dead loop so use CTRL-C to stop it.
      * 
      */
-    public function radius_run() {
+    public function radius_run(array $config) {
+        $this->parseConfig($config);
         do {
             if ($this->time == 0) {
                 $this->time = microtime(true);
@@ -582,9 +590,7 @@ class RadiusServer {
             }
 
             $this->log("Waiting for packet", RADIUS_CONNECTION);
-
             $pkta = []; // array of info about packet
-
             $r = socket_recvfrom($this->socket, $pkt, $this->receive_buffer, 0, $remote_ip, $remote_port);  // Receive data
 
             $this->requests++;

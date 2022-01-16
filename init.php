@@ -13,6 +13,18 @@
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
+// Set base dir
+const RADIUS_SERVER_BASE = __DIR__;
+
+// Constants
+define("RADIUS_OFF", 0);
+define("RADIUS_BASIC", 1);
+define("RADIUS_CONNECTION", 2);
+define("RADIUS_INFO", 3);
+define("RADIUS_DEBUG", 4);
+
+require_once RADIUS_SERVER_BASE.DIRECTORY_SEPARATOR.'config.php';
+
 // Autoloader
 spl_autoload_register(function ($class_name) {
     require_once RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'classes' . DIRECTORY_SEPARATOR . $class_name . '.php';
