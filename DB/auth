@@ -1,0 +1,7 @@
+username
+ password = password
+ Framed-IP-Address = 1.1.2.2
+ Framed-Protocol = PPP
+ Service-Type = Framed-User
+ Framed-Pool = pppoe-pool-1
+ Session-Timeout = 324532

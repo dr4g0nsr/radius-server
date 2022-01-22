@@ -30,17 +30,40 @@ namespace auth;
  */
 class File {
 
-    public function getLoginInfo(string $username) {
-        if ($username == 'username') {
-            return [
-                'password' => "password",
-                'Framed-IP-Address' => '1.1.2.2',
-                'Framed-Protocol' => 'PPP',
-                'Service-Type' => 'Framed-User',
-                'Framed-Pool' => 'pppoe-pool-1',
-                'Session-Timeout' => 324532,
-            ];
+    private $auth = [];
+    private $loadedAt = NULL;
+    private $loadEvery = 60;
+
+    private function loadDB() {
+        $this->loadedAt = 0;
+        $content = file_get_contents(RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'DB' . DIRECTORY_SEPARATOR . 'auth');
+        if (!$content) {
+            return;
         }
+        $contentNL = explode("\n", $content);
+
+        $userName = '';
+        foreach ($contentNL as $item) {
+            if (empty($item) || $item[0] == '#') {
+                continue;
+            }
+            if ($item[0] != ' ') {
+                $userName = $item;
+                continue;
+            } else {
+                $item = trim($item);
+                $attr = explode("=", $item);
+                $this->auth[$userName][trim($attr[0])] = trim($attr[1]);
+            }
+        }
+    }
+
+    public function getLoginInfo(string $username) {
+        // (Re)Loads auth db if empty or outdated
+        if (empty($this->auth) || $this->loadedAt < microtime(true) - $this->loadEvery) {
+            $this->loadDB();
+        }
+        return $this->auth[$username];
     }
 
 }
