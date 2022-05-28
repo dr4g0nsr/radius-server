@@ -1,6 +1,7 @@
 <?php
 
-const DEBUG = false;
+const DEBUG = true;
+
 $config = [
     'serverip' => '0.0.0.0',
     'serverport' => 1812,

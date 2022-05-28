@@ -93,10 +93,10 @@ class RadiusServer {
         80 => "Message-Authenticator",
         87 => "NAS-Port-ID",
     ];
-    public $radius_attributes_reverse = [];
-    public $vendor_radius_attributes = [];
-    public $vendor_radius_attributes_reverse = [];
-    public $radius_codes_reverse = [];
+    public $radiusAttributesReverse = [];
+    public $vendorRadiusAttributes = [];
+    public $vendorRadiusAttributesReverse = [];
+    public $radiusCodesReverse = [];
     private $socket;
     private $peer;
     private $receive_buffer = 65535;
@@ -107,36 +107,16 @@ class RadiusServer {
     private $requests = 0;
     private $requests_min = 0;
     private $requests_max = 0;
-    public $debug_level = RADIUS_BASIC;   // 0=off, 1=basic, 2=connection, 3=info, 4=debug
+    public $debugLevel = RADIUS_BASIC;   // 0=off, 1=basic, 2=connection, 3=info, 4=debug
     private $log_file = FALSE;   // where to save logs
     private $authMethod = NULL;
     private $authClass = NULL;
     protected $threads = FALSE; // boolean to flag thread usage, don't do it
-    protected $thread_array = [];
+    protected $threadArray = [];
     protected $loginInfo;
 
-    /**
-     * Initialize server, bind IP and load dictionary
-     * 
-     * @param type $serverip
-     * @param type $serverport
-     */
-    public function __init($serverip = false, $serverport = false) {
+    public function __construct() {
 
-        if ($serverip) {    // server ip is defined
-            $this->serverip = $serverip;
-            $this->serverport = $serverport;
-        }
-
-        /*
-          if (class_exists("Thread")) {
-          $this->log("Threading available", RADIUS_BASIC);
-          require __DIR__ . "/radius_threads.php";
-          //$this->threads = true;    // disabled threads - some very strange things happens
-          }
-         */
-
-        $this->log("Running RADIUS server {$this->serverip} : {$this->serverport} on PHP " . PHP_VERSION . "", RADIUS_BASIC);    // server is running
         if (PHP_MAJOR_VERSION < 7) {
             $this->log("Please consider updating to PHP7, as you will get 4x better performance", RADIUS_BASIC);
         }
@@ -144,7 +124,22 @@ class RadiusServer {
         if (!function_exists("socket_create")) {    // check if extension is enabled
             die("ERROR: socket_create does not exist, please include socket extension (php_sockets.dll or php_sockets.so)");
         }
+    }
 
+    /**
+     * Initialize server, bind IP and load dictionary
+     * 
+     * @param type $serverip
+     * @param type $serverport
+     */
+    public function initialize($serverip = false, $serverport = false) {
+
+        if ($serverip) {    // server ip is defined
+            $this->serverip = $serverip;
+            $this->serverport = $serverport;
+        }
+
+        $this->log("Running RADIUS server {$this->serverip} : {$this->serverport} on PHP " . PHP_VERSION . "", RADIUS_BASIC);    // server is running
 
         if (!($this->socket = socket_create(AF_INET, SOCK_DGRAM, 0))) { // create socket
             $errorcode = socket_last_error();
@@ -168,7 +163,7 @@ class RadiusServer {
      * @param int    $debug Debug to match this message
      */
     protected function log($message, $debug = NULL) {
-        if ($debug === NULL || $this->debug_level >= $debug) {  // debug on, write messages
+        if ($debug === NULL || $this->debugLevel >= $debug) {  // debug on, write messages
             if ($this->log_file) {  // log file defined?
                 $r = file_put_contents($this->log_file, $message, FILE_APPEND); // add to log
                 if ($r === FALSE) { // write to log failed?
@@ -181,22 +176,34 @@ class RadiusServer {
     }
 
     /**
+     * Just iterate and inverse to property
+     * 
+     * @param array $attrs Attribute to inverse
+     */
+    private function inverseAttributes($attrs) {
+        foreach ($attrs as $id => $val) {
+            $this->vendorRadiusAttributesReverse[$id] = $val;
+        }
+    }
+
+    /**
      * Iterate all found attributes and store it into var
      * 
      * @param array $vendor_radius_attributes Attributes read from dictionary files
      */
     private function setup_attributes($vendor_radius_attributes) {
-        foreach ($this->vendor_radius_attributes as $attr => $vars) {
+        foreach ($this->vendorRadiusAttributes as $attr => $vars) {
             if (isset($vars["id"])) {
-                $this->vendor_radius_attributes_reverse[$vars["id"]] = $vars;
+                $this->vendorRadiusAttributesReverse[$vars["id"]] = $vars;
                 continue;
             }
             if (is_array($vars)) {
-                foreach ($vars as $id => $val) {
-                    $this->vendor_radius_attributes_reverse[$id] = $val;
-                }
+                $this->inverseAttributes($vars);
                 continue;
             }
+        }
+        if (DEBUG) {
+            file_put_contents(__DIR__ . "/../../dump_attrs.txt", json_encode($this->vendorRadiusAttributesReverse), FILE_APPEND);
         }
     }
 
@@ -206,9 +213,9 @@ class RadiusServer {
      * Used to parse format from dictionary where is stored in val - key order
      */
     public function reverse_dictionary() {
-        $this->radius_attributes_reverse = array_flip($this->radius_attributes);    // much faster to lookup for reverse attr
-        $this->radius_codes_reverse = array_flip($this->radius_codes);  // much faster to lookup for reverse codes
-        $this->setup_attributes($this->vendor_radius_attributes);
+        $this->radiusAttributesReverse = array_flip($this->radius_attributes);    // much faster to lookup for reverse attr
+        $this->radiusCodesReverse = array_flip($this->radius_codes);  // much faster to lookup for reverse codes
+        $this->setup_attributes($this->vendorRadiusAttributes);
     }
 
     /**
@@ -239,7 +246,7 @@ class RadiusServer {
                     $dict_item_e = explode(" ", $dict_item);    // split by space
                     switch ($dict_item_e[0]) {
                         case "VENDOR":
-                            $this->vendor_radius_attributes[$dict_item_e[1]]["id"] = $dict_item_e[2];
+                            $this->vendorRadiusAttributes[$dict_item_e[1]]["id"] = $dict_item_e[2];
                             break;
                         case "BEGIN-VENDOR":
                             $current_vendor = $dict_item_e[1];
@@ -251,7 +258,7 @@ class RadiusServer {
                             if (!$current_vendor) {
                                 $this->radius_attributes[$dict_item_e[2]] = $dict_item_e[1];
                             } else {
-                                $this->vendor_radius_attributes[$current_vendor][$dict_item_e[1]] = $dict_item_e[2];
+                                $this->vendorRadiusAttributes[$current_vendor][$dict_item_e[1]] = $dict_item_e[2];
                             }
                             break;
                         case "VALUE":
@@ -423,7 +430,7 @@ class RadiusServer {
                 $value = $this->encode_ip($value);
             default:
         }
-        $code = @$this->radius_attributes_reverse[$attribute];
+        $code = @$this->radiusAttributesReverse[$attribute];
         if (!$code) {
             $this->log("   ******* Attribute {$attribute} unknown! *******", RADIUS_INFO);
             return false;
@@ -444,10 +451,10 @@ class RadiusServer {
     public function decode_attr($code, $request, $size) {
         $csize = 0;
         while ($csize < $size) {
-            if ($code == $this->radius_codes_reverse["Access-Request"]) {
+            if ($code == $this->radiusCodesReverse["Access-Request"]) {
                 $type = $this->radius_attributes[ord($request[$csize])];
             } else
-            if ($code == $this->radius_codes_reverse["Accounting-Request"]) {
+            if ($code == $this->radiusCodesReverse["Accounting-Request"]) {
                 $type = $this->radius_acc_atributes[ord($request[$csize])];
             } else {
                 log("Unknown packet type {$code}", RADIUS_BASIC);
@@ -464,7 +471,7 @@ class RadiusServer {
                 "array_value" => $array_value,
             ];
             $csize += $len;
-            if (RADIUS_INFO == $this->debug_level) {  // debug on, write messages
+            if (RADIUS_INFO == $this->debugLevel) {  // debug on, write messages
                 $value = $this->hex_dump($value);
             }
             $this->log("   {$type} => {$value}", RADIUS_INFO);
@@ -495,10 +502,10 @@ class RadiusServer {
      * @param string $remote_ip Remote IP address where request came from
      * @param string $remote_port Remote port where request was sent to
      */
-    private final function process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port) {
+    private function process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port) {
 
         switch ($pkta["code"]) {    // Request code
-            case $this->radius_codes_reverse["Access-Request"]:
+            case $this->radiusCodesReverse["Access-Request"]:
                 $password_match = $this->loginMatch($auth, $attr);
                 if ($password_match) {
                     // Access-Accept
@@ -510,7 +517,7 @@ class RadiusServer {
                         }
                         $reply .= $this->set_attribute($attr, $val);
                     }
-                    $response_code = $this->radius_codes_reverse["Access-Accept"];   //access-accept
+                    $response_code = $this->radiusCodesReverse["Access-Accept"];   //access-accept
                     $response_length = 3 + 16 + 1 + strlen($reply);
                     $response_string = pack("CCna16a" . strlen($reply) . "a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $reply, $this->secret);
                     $response_auth = md5($response_string, true);
@@ -519,7 +526,7 @@ class RadiusServer {
                 } else {
                     // Access-Reject
                     $this->log("Reply: Access-Reject", RADIUS_INFO);
-                    $response_code = $this->radius_codes_reverse["Access-Reject"];   //access-accept
+                    $response_code = $this->radiusCodesReverse["Access-Reject"];   //access-accept
                     $response_length = 3 + 16 + 1;
                     $response_string = pack("CCna16a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $this->secret);
                     $response_auth = md5($response_string, true);
@@ -527,7 +534,7 @@ class RadiusServer {
                     $this->radius_reply($response_string_binary, $remote_ip, $remote_port);
                 }
                 break;
-            case $this->radius_codes_reverse["Accounting-Request"]:
+            case $this->radiusCodesReverse["Accounting-Request"]:
                 $this->log("Reply: Accounting-Request", RADIUS_INFO);
                 break;
             default:
@@ -616,7 +623,7 @@ class RadiusServer {
 
             if ($this->threads) {   // threading exists on server, use it
                 $newthread = new radiusThreads($pkt, $remote_ip, $remote_port); // instance thread extended class with parameters
-                $this->thread_array[] = &$newthread;    // put thread list to array so we can manage it, do not copy var, only pass pointer
+                $this->threadArray[] = &$newthread;    // put thread list to array so we can manage it, do not copy var, only pass pointer
                 $newthread->start();    // start thread
             } else {
                 $this->process_request($pkt, $remote_ip, $remote_port); // process request

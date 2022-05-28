@@ -15,9 +15,9 @@
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . "init.php";
 
-$radius = new \server\RadiusServer;
-$radius->debug_level = $config['debug'];
+$radius = new \server\RadiusServer();
+$radius->debugLevel = $config['debug'];
 $radius->load_dictionary();
 $radius->reverse_dictionary();
-$radius->__init();
+$radius->initialize();
 $radius->radius_run($config);

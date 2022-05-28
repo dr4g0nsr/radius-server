@@ -2,6 +2,8 @@
 
 This is PHP-based radius server.
 
+It's tested and works on PHP up to 8.1, it should work on all 7.X as well, I do not recommend to use 5.X and earlier.
+
 **Why use php based radius?**
 
 Becouse many applictions are written in PHP that communicate with radius DB to update and synchronize own DB. This is unnecessary as you can override methods to implement your own system for logging the users.
@@ -29,6 +31,7 @@ $config = [
     'debug' => RADIUS_DEBUG,
 ];
 ```
+
 Here auth_method is authentication method used to provide auth and attributes. You need to have class with same name if you want to change this. Your class should contain implementation of specific source like database. "File" is simple file reader that is refreshed every 60 seconds, it is used as example how to do this. I recommend using redis for this purpose as it is very fast and simple.
 
 You class should exists in classes/auth directory.

@@ -68,6 +68,7 @@ $INCLUDE dictionary.ascend.illegal
 #	see:
 #		http://www.iana.org/assignments/radius-types
 #
+
 $INCLUDE dictionary.rfc2865
 $INCLUDE dictionary.rfc2866
 $INCLUDE dictionary.rfc2867
@@ -91,6 +92,7 @@ $INCLUDE dictionary.rfc5904
 #
 #	Include vendor dictionaries after the standard ones.
 #
+
 $INCLUDE dictionary.3com
 $INCLUDE dictionary.3gpp
 $INCLUDE dictionary.3gpp2
@@ -111,11 +113,6 @@ $INCLUDE dictionary.cablelabs
 $INCLUDE dictionary.cabletron
 $INCLUDE dictionary.chillispot
 $INCLUDE dictionary.cisco
-#
-#	 The Cisco VPN300 dictionary is the same as the altiga one.
-#	 You shouldn't use both at the same time.
-#
-#$INCLUDE dictionary.cisco.vpn3000
 $INCLUDE dictionary.cisco.vpn5000
 $INCLUDE dictionary.cisco.bbsm
 $INCLUDE dictionary.clavister
@@ -160,16 +157,9 @@ $INCLUDE dictionary.networkphysics
 $INCLUDE dictionary.nexans
 $INCLUDE dictionary.ntua
 $INCLUDE dictionary.nokia
-#
-#  Commented out because of attribute conflicts.
-#
-#$INCLUDE dictionary.nokia.conflict
 $INCLUDE dictionary.nomadix
 $INCLUDE dictionary.nortel
-#
-#  Commented out because of attribute conflicts.
-#
-#$INCLUDE dictionary.openser
+$INCLUDE dictionary.pfsense
 $INCLUDE dictionary.packeteer
 $INCLUDE dictionary.patton
 $INCLUDE dictionary.propel
