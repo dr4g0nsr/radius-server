@@ -383,6 +383,7 @@ class RadiusServer {
      * @return boolean True if logged in successfully
      */
     private function loginMatch($auth, $attr) {
+		
         $password = $this->loginCheck($attr["User-Name"]["value"]);
         if (!$password) {    // login not found
             $this->log("No login for " . $attr["User-Name"]["value"], RADIUS_DEBUG);
@@ -392,13 +393,13 @@ class RadiusServer {
             $chapID = $attr['CHAP-Password']['value'][0];
             $encrypted_password = md5($chapID . $password . $attr["CHAP-Challenge"]["value"]);
             $requested_password = $this->hex_dump(substr($attr["CHAP-Password"]["value"], 1));
-            return $requested_password == $encrypted_password && $user == $attr["User-Name"]["value"];
+            return $requested_password == $encrypted_password;
         } else
         if (@$attr["CHAP-Password"]) {  // https://tools.ietf.org/html/rfc2058#section-5.3
             $chapID = $attr['CHAP-Password']['value'][0];
             $encrypted_password = md5($chapID . $password . $auth);
             $requested_password = $this->hex_dump(substr($attr["CHAP-Password"]["value"], 1));
-            return $requested_password == $encrypted_password && $attr["User-Name"]["value"] == $attr["User-Name"]["value"];
+            return $requested_password == $encrypted_password;
         } else
         if (@$attr["EAP-Message"]) {
             die("EAP unsupported.");
@@ -406,7 +407,7 @@ class RadiusServer {
         if (@$attr["User-Password"]) {  // https://tools.ietf.org/html/rfc2058#section-5.2
             $encrypted_password = $this->create_user_password($password, $auth, $this->secret);
             $requested_password = $this->hex_dump($attr["User-Password"]["value"]);
-            return $requested_password == $encrypted_password && $user == $attr["User-Name"]["value"];
+            return $requested_password == $encrypted_password ;
         } else
         if (@$attr["MS-CHAP-Challenge"]) {
             die("MS-CHAP unsupported.");
@@ -457,7 +458,7 @@ class RadiusServer {
             if ($code == $this->radiusCodesReverse["Accounting-Request"]) {
                 $type = $this->radius_acc_atributes[ord($request[$csize])];
             } else {
-                log("Unknown packet type {$code}", RADIUS_BASIC);
+                $this->log("Unknown packet type {$code}", RADIUS_BASIC);
             }
 
             $len = ord($request[$csize + 1]);
