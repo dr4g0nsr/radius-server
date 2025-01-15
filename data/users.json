@@ -1,0 +1,20 @@
+{
+    "123456" : {
+        "User-Name" : "septian-id",
+        "password" : "septian-id",
+        "Framed-IP-Address" : "192.168.2.200",
+        "Framed-Protocol" : "PPP",
+        "Service-Type" : "Framed-User",
+        "Framed-Pool" : "hs-pool-2",
+        "Session-Timeout" : "324532"
+    },
+    "654321" : {
+        "User-Name" : "usertest",
+        "password" : "123456",
+        "Framed-IP-Address" : "192.168.2.201",
+        "Framed-Protocol" : "PPP",
+        "Service-Type" : "Framed-User",
+        "Framed-Pool" : "hs-pool-2",
+        "Session-Timeout" : "324532"
+    }
+}
