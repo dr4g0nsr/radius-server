@@ -385,17 +385,17 @@ class RadiusServer {
     private function loginMatch($auth, $attr) {
 		
         $password = $this->loginCheck($attr["User-Name"]["value"]);
-        if (!$password) {    // login not found
+        if (!$password) {
             $this->log("No login for " . $attr["User-Name"]["value"], RADIUS_DEBUG);
             return false;
         }
-        if (@$attr["CHAP-Challenge"]) { // https://tools.ietf.org/html/rfc2058#section-5.40
+        if (@$attr["CHAP-Challenge"]) {
             $chapID = $attr['CHAP-Password']['value'][0];
             $encrypted_password = md5($chapID . $password . $attr["CHAP-Challenge"]["value"]);
             $requested_password = $this->hex_dump(substr($attr["CHAP-Password"]["value"], 1));
             return $requested_password == $encrypted_password;
         } else
-        if (@$attr["CHAP-Password"]) {  // https://tools.ietf.org/html/rfc2058#section-5.3
+        if (@$attr["CHAP-Password"]) { 
             $chapID = $attr['CHAP-Password']['value'][0];
             $encrypted_password = md5($chapID . $password . $auth);
             $requested_password = $this->hex_dump(substr($attr["CHAP-Password"]["value"], 1));
@@ -404,7 +404,7 @@ class RadiusServer {
         if (@$attr["EAP-Message"]) {
             die("EAP unsupported.");
         } else
-        if (@$attr["User-Password"]) {  // https://tools.ietf.org/html/rfc2058#section-5.2
+        if (@$attr["User-Password"]) {
             $encrypted_password = $this->create_user_password($password, $auth, $this->secret);
             $requested_password = $this->hex_dump($attr["User-Password"]["value"]);
             return $requested_password == $encrypted_password ;
