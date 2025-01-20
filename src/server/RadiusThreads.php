@@ -9,13 +9,17 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2025 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
+namespace Cirko\RadiusServer\server;
 
 // Threading class for radius
-class radiusThreads extends Thread {
+// Do not use it for now, it requires
+// threading model of php and it's not working correctly
+
+class RadiusThreads extends \Thread {
 
     public $pkt;
     public $remote_ip;

@@ -5,3 +5,13 @@ username
  Service-Type = Framed-User
  Framed-Pool = pppoe-pool-1
  Session-Timeout = 324532
+ Mikrotik-Rate-Limit = 512000/512000 0/0 0/0 0/0 0 512000/512000
+
+00:0C:29:A3:B0:7E
+ password =
+ Framed-IP-Address = 1.1.2.3
+ Framed-Protocol = PPP
+ Service-Type = Framed-User
+ Framed-Pool = pppoe-pool-1
+ Session-Timeout = 324532
+ Mikrotik-Rate-Limit = 512000/512000 0/0 0/0 0/0 0 512000/512000

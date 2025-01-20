@@ -9,7 +9,7 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2025 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
@@ -25,8 +25,8 @@ define("RADIUS_DEBUG", 4);
 
 require_once RADIUS_SERVER_BASE.DIRECTORY_SEPARATOR.'config.php';
 
-// Autoloader
-spl_autoload_register(function ($class_name) {
-    $class_name = str_replace('\\',DIRECTORY_SEPARATOR,$class_name);	
-    require_once RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'classes' . DIRECTORY_SEPARATOR . $class_name . '.php';
-});
+if (!file_exists("vendor/autoload.php")) {
+    die("Seems that composer is not installed, run composer install please");
+}
+
+require_once "vendor/autoload.php";

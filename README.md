@@ -1,12 +1,14 @@
 # RADIUS-SERVER
 
+**What is this repo?**
+
 This is PHP-based radius server.
 
-It's tested and works on PHP up to 8.1, it should work on all 7.X as well, I do not recommend to use 5.X and earlier.
+It's tested and works on PHP 8.4 as it is defined in compose.json. It could work on lower version but it's untested.
 
 **Why use php based radius?**
 
-Becouse many applictions are written in PHP that communicate with radius DB to update and synchronize own DB. This is unnecessary as you can override methods to implement your own system for logging the users.
+Becouse many applictions are written in PHP that communicate with radius DB to update and synchronize own DB. This is unnecessary as you can override methods to implement your own system for logging in the users.
 
 **Which applications is suited to use this?**
 

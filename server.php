@@ -9,13 +9,13 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2025 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . "init.php";
 
-$radius = new \server\RadiusServer();
+$radius = new \Cirko\RadiusServer\server\RadiusServer();
 $radius->debugLevel = $config['debug'];
 $radius->load_dictionary();
 $radius->reverse_dictionary();

@@ -9,11 +9,11 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2025 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
-namespace auth;
+namespace Cirko\RadiusServer\Auth;
 
 /**
  * File based authentication class
@@ -58,12 +58,17 @@ class File {
         }
     }
 
-    public function getLoginInfo(string $username) {
+    
+    public function getLoginInfo(string $username):array|bool {
         // (Re)Loads auth db if empty or outdated
         if (empty($this->auth) || $this->loadedAt < microtime(true) - $this->loadEvery) {
             $this->loadDB();
         }
-        return $this->auth[$username];
+        if (!is_array($this->auth) || empty($this->auth) || !isset($this->auth[$username])) {
+            return false;
+        } else {
+            return ($this->auth[$username]);
+        }
     }
 
 }
