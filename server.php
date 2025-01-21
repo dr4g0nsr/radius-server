@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4: */
 /**
  * LICENSE: This source file is subject to version 3.01 of the PHP license

@@ -23,7 +23,7 @@ define("RADIUS_CONNECTION", 2);
 define("RADIUS_INFO", 3);
 define("RADIUS_DEBUG", 4);
 
-require_once RADIUS_SERVER_BASE.DIRECTORY_SEPARATOR.'config.php';
+require RADIUS_SERVER_BASE.DIRECTORY_SEPARATOR.'config.php';
 
 if (!file_exists("vendor/autoload.php")) {
     die("Seems that composer is not installed, run composer install please");

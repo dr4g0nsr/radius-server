@@ -16,5 +16,8 @@
     ],
     "require": {
         "predis/predis": "^2.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
     }
 }

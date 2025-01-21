@@ -29,8 +29,8 @@ class RadiusServer extends RadiusDictionary {
     
     public function __construct() {
 
-        if (PHP_MAJOR_VERSION < 7) {
-            $this->log("Please consider updating to PHP7, as you will get 4x better performance", RADIUS_BASIC);
+        if (PHP_MAJOR_VERSION < 8) {
+            $this->log("Please consider updating to PHP8, supported version is 8.4", RADIUS_BASIC);
         }
 
         if (!function_exists("socket_create")) {    // check if extension is enabled
@@ -41,10 +41,10 @@ class RadiusServer extends RadiusDictionary {
     /**
      * Initialize server, bind IP and load dictionary
      * 
-     * @param type $serverip
-     * @param type $serverport
+     * @param string $serverip
+     * @param int $serverport
      */
-    public function initialize($serverip = false, $serverport = false) {
+    public function initialize($serverip = '', $serverport = 0) {
 
         if ($serverip) {    // server ip is defined
             $this->serverip = $serverip;
@@ -369,9 +369,9 @@ class RadiusServer extends RadiusDictionary {
     /**
      * Process single request
      * 
-     * @param type $pkt
+     * @param string $pkt
      * @param string $remote_ip Remote IP address
-     * @param type $remote_port Remote port
+     * @param int $remote_port Remote port
      * @return boolean True on success, false on error
      */
     public final function process_request($pkt, $remote_ip, $remote_port) {
@@ -398,12 +398,16 @@ class RadiusServer extends RadiusDictionary {
         return true;
     }
 
-    private function parseConfig(array $config) {
+    public function parseConfig(array $config) {
         $this->receive_buffer = (int) $config['receive_buffer'];
         $this->serverip = $config['serverip'];
         $this->serverport = $config['serverport'];
         $this->secret = $config['secret'];
         $this->authMethod = $config['auth_method'];
+    }
+
+    private function savePacket(int $id, string $content):void {
+        file_put_contents(__DIR__."/../../packets/packet-".$id.".pkt",$content);
     }
 
     /**
@@ -415,6 +419,7 @@ class RadiusServer extends RadiusDictionary {
      */
     public function radius_run(array $config) {
         $this->parseConfig($config);
+        $packet=0;
         do {
             if ($this->time == 0) {
                 $this->time = microtime(true);
@@ -424,6 +429,7 @@ class RadiusServer extends RadiusDictionary {
             $this->log("Waiting for packet", RADIUS_CONNECTION);
             $pkta = []; // array of info about packet
             $r = socket_recvfrom($this->socket, $pkt, $this->receive_buffer, 0, $remote_ip, $remote_port);  // Receive data
+            $this->savePacket($packet,$pkt);
 
             $this->requests++;
 
@@ -453,6 +459,7 @@ class RadiusServer extends RadiusDictionary {
             } else {
                 $this->process_request($pkt, $remote_ip, $remote_port); // process request
             }
+            $packet++;
         } while ($pkt !== false);   // dead loop, process next packet
     }
 
