@@ -17,6 +17,10 @@ declare(strict_types = 1);
 
 namespace Cirko\RadiusServer\server;
 
+use Cirko\RadiusServer\decode\Attributes;
+use Cirko\RadiusServer\log\Log;
+
+
 /**
  * Radius server class
  * 
@@ -25,17 +29,34 @@ namespace Cirko\RadiusServer\server;
  * @package radius-server
  * @author Dragutin Cirkovic <dragonmen@gmail.com>
  */
-class RadiusServer extends RadiusDictionary {
+class RadiusServer {
+
+    private $attributes;
+    public $debugLevel;
+    private $serverip;
+    private $serverport;
+    private $socket;
+    private $receive_buffer;
+    private $secret;
+    private $authMethod;
+    private $time;
     
-    public function __construct() {
+    public function __construct($config) {
 
         if (PHP_MAJOR_VERSION < 8) {
-            $this->log("Please consider updating to PHP8, supported version is 8.4", RADIUS_BASIC);
+            Log::log("Please consider updating to PHP8, supported version is 8.4", RADIUS_BASIC);
         }
 
         if (!function_exists("socket_create")) {    // check if extension is enabled
             die("ERROR: socket_create does not exist, please include socket extension (php_sockets.dll or php_sockets.so)");
         }
+
+        $this->debugLevel = $config['debug'];
+        $this->serverip=$config['serverip'];
+        $this->serverport=$config['serverport'];
+        Log::setDebugLevel($config['debug']);
+
+        $this->attributes=new Attributes();
     }
 
     /**
@@ -44,14 +65,12 @@ class RadiusServer extends RadiusDictionary {
      * @param string $serverip
      * @param int $serverport
      */
-    public function initialize($serverip = '', $serverport = 0) {
+    public function initialize() {
 
-        if ($serverip) {    // server ip is defined
-            $this->serverip = $serverip;
-            $this->serverport = $serverport;
-        }
+        $this->attributes->load_dictionary();
+        $this->attributes->reverse_dictionary();
 
-        $this->log("Running RADIUS server {$this->serverip} : {$this->serverport} on PHP " . PHP_VERSION . "", RADIUS_BASIC);    // server is running
+        Log::log("Running RADIUS server {$this->serverip} : {$this->serverport} on PHP " . PHP_VERSION . "", RADIUS_BASIC);    // server is running
 
         if (!($this->socket = socket_create(AF_INET, SOCK_DGRAM, 0))) { // create socket
             $errorcode = socket_last_error();
@@ -65,25 +84,6 @@ class RadiusServer extends RadiusDictionary {
             $errormsg = socket_strerror($errorcode);
 
             die("Could not bind socket : [$errorcode] $errormsg \n");
-        }
-    }
-
-    /**
-     * Log message to either file or screen, depending on settings
-     * 
-     * @param string $message Message to log/show
-     * @param int    $debug Debug to match this message
-     */
-    protected function log($message, $debug = NULL) {
-        if ($debug === NULL || $this->debugLevel >= $debug) {  // debug on, write messages
-            if ($this->log_file) {  // log file defined?
-                $r = file_put_contents($this->log_file, $message, FILE_APPEND); // add to log
-                if ($r === FALSE) { // write to log failed?
-                    echo "ERROR: Could not write to log!\n";
-                }
-            } else {
-                echo $message . "\n";   // echo to console
-            }
         }
     }
 
@@ -131,7 +131,7 @@ class RadiusServer extends RadiusDictionary {
         if ($filename) {
             file_put_contents(__DIR__ . "/" . $filename, $hex);
         } else {
-            $this->log($hex, RADIUS_DEBUG);
+            Log::log($hex, RADIUS_DEBUG);
         }
     }
 
@@ -210,7 +210,7 @@ class RadiusServer extends RadiusDictionary {
 		
         $password = $this->loginCheck($attr["User-Name"]["value"]);
         if ($password===false) {    // login not found
-            $this->log("No login for " . $attr["User-Name"]["value"], RADIUS_DEBUG);
+            Log::log("No login for " . $attr["User-Name"]["value"], RADIUS_DEBUG);
             return false;
         }
         if (@$attr["CHAP-Challenge"]) { // https://tools.ietf.org/html/rfc2058#section-5.40
@@ -249,7 +249,7 @@ class RadiusServer extends RadiusDictionary {
      * @return boolean
      */
     public function set_attribute($attribute, $value) {
-        $this->log("   {$attribute} -> {$value}", RADIUS_INFO);
+        Log::log("   {$attribute} -> {$value}", RADIUS_INFO);
         switch ($attribute) {
             case "Framed-IP-Address":
                 $value = $this->encode_ip($value);
@@ -257,51 +257,12 @@ class RadiusServer extends RadiusDictionary {
         }
         $code = @$this->radiusAttributesReverse[$attribute];
         if (!$code) {
-            $this->log("   ******* Attribute {$attribute} unknown! *******", RADIUS_INFO);
+            Log::log("   ******* Attribute {$attribute} unknown! *******", RADIUS_INFO);
             return false;
         }
 
         $packed = pack("CCa" . strlen($value), $code, strlen($value) + 2, $value);
         return $packed;
-    }
-
-    /**
-     * Decode attributes from radius packet
-     * 
-     * @param type $code
-     * @param type $request
-     * @param type $size
-     * @return type
-     */
-    public function decode_attr($code, $request, $size): array {
-        $csize = 0;
-        while ($csize < $size) {
-            if ($code == $this->radiusCodesReverse["Access-Request"]) {
-                $type = $this->radius_attributes[ord($request[$csize])];
-            } else
-            if ($code == $this->radiusCodesReverse["Accounting-Request"]) {
-                $type = $this->radius_acc_atributes[ord($request[$csize])];
-            } else {
-                $this->log("Unknown packet type {$code}", RADIUS_BASIC);
-            }
-
-            $len = ord($request[$csize + 1]);
-            $value = substr($request, $csize + 2, $len - 2);
-            $array_value = [];
-            for ($c = 0; $c < strlen($value); $c++) {
-                $array_value[] = ord($value[$c]);
-            }
-            $attr[$type] = [
-                "value" => $value,
-                "array_value" => $array_value,
-            ];
-            $csize += $len;
-            if (RADIUS_INFO == $this->debugLevel) {  // debug on, write messages
-                $value = $this->hex_dump($value);
-            }
-            $this->log("   {$type} => {$value}", RADIUS_INFO);
-        }
-        return $attr;
     }
 
     /**
@@ -334,7 +295,7 @@ class RadiusServer extends RadiusDictionary {
                 $password_match = $this->loginMatch($auth, $attr);
                 if ($password_match) {
                     // Access-Accept
-                    $this->log("Reply: Access-Accept", RADIUS_INFO);
+                    Log::log("Reply: Access-Accept", RADIUS_INFO);
                     $reply = '';
                     foreach ($this->loginInfo as $attr => $val) {
                         if ($attr == 'password') {
@@ -350,7 +311,7 @@ class RadiusServer extends RadiusDictionary {
                     $this->radius_reply($response_string_binary, $remote_ip, $remote_port);
                 } else {
                     // Access-Reject
-                    $this->log("Reply: Access-Reject", RADIUS_INFO);
+                    Log::log("Reply: Access-Reject", RADIUS_INFO);
                     $response_code = $this->radiusCodesReverse["Access-Reject"];   //access-accept
                     $response_length = 3 + 16 + 1;
                     $response_string = pack("CCna16a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $this->secret);
@@ -360,7 +321,7 @@ class RadiusServer extends RadiusDictionary {
                 }
                 break;
             case $this->radiusCodesReverse["Accounting-Request"]:
-                $this->log("Reply: Accounting-Request", RADIUS_INFO);
+                Log::log("Reply: Accounting-Request", RADIUS_INFO);
                 break;
             default:
         }
@@ -382,17 +343,17 @@ class RadiusServer extends RadiusDictionary {
             "len" => (ord($pkt[2]) * 255) + ord($pkt[3]),
         ];
 
-        $this->log("Request: {$this->peer} {$this->radius_codes[$pkta["code"]]} id  {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
+        Log::log("Request: {$this->peer} {$this->radius_codes[$pkta["code"]]} id  {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
 
         if (strlen($pkt) < 21) {
-            $this->log("Packet less than 21, probalby empty request", RADIUS_INFO);
+            Log::log("Packet less than 21, probalby empty request", RADIUS_INFO);
             return false;
         }
 
         $auth = substr($pkt, 4, 16);
         $avps = substr($pkt, 20);
-        $attr = $this->decode_attr($pkta["code"], $avps, $pkta["len"] - 20);
-        $this->log("Reply: ", RADIUS_INFO);
+        $attr = $this->attributes->decode_attr($pkta["code"], $avps, $pkta["len"] - 20);
+        Log::log("Reply: ", RADIUS_INFO);
         $this->process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port);
 
         return true;
@@ -426,7 +387,7 @@ class RadiusServer extends RadiusDictionary {
                 $last_requests = 0;
             }
 
-            $this->log("Waiting for packet", RADIUS_CONNECTION);
+            Log::log("Waiting for packet", RADIUS_CONNECTION);
             $pkta = []; // array of info about packet
             $r = socket_recvfrom($this->socket, $pkt, $this->receive_buffer, 0, $remote_ip, $remote_port);  // Receive data
             $this->savePacket($packet,$pkt);
@@ -434,7 +395,7 @@ class RadiusServer extends RadiusDictionary {
             $this->requests++;
 
             if (strlen($pkt) < 4) { // Invalid packet size
-                $this->log("Malformed packet, reply size less than 4!", RADIUS_INFO);
+                Log::log("Malformed packet, reply size less than 4!", RADIUS_INFO);
                 continue;
             }
             $microtime = microtime(true);
@@ -447,20 +408,24 @@ class RadiusServer extends RadiusDictionary {
                 if ($req > $this->requests_max) {
                     $this->requests_max = $req;
                 }
-                $this->log("Requests: {$req}/sec minimum {$this->requests_min} maximum {$this->requests_max}", RADIUS_BASIC);
+                Log::log("Requests: {$req}/sec minimum {$this->requests_min} maximum {$this->requests_max}", RADIUS_BASIC);
                 $last_requests = $this->requests;
                 $this->time = $microtime;
             }
 
-            if ($this->threads) {   // threading exists on server, use it
-                $newthread = new radiusThreads($pkt, $remote_ip, $remote_port); // instance thread extended class with parameters
-                $this->threadArray[] = &$newthread;    // put thread list to array so we can manage it, do not copy var, only pass pointer
-                $newthread->start();    // start thread
+            if ($this->threads) {   // threading exists on server, use it. It's not recommended to do so.
+                $this->runThread();
             } else {
                 $this->process_request($pkt, $remote_ip, $remote_port); // process request
             }
             $packet++;
         } while ($pkt !== false);   // dead loop, process next packet
+    }
+
+    private function runThread() {
+        $newthread = new radiusThreads($pkt, $remote_ip, $remote_port);
+        $this->threadArray[] = &$newthread;
+        $newthread->start();
     }
 
     /**

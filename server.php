@@ -17,9 +17,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . "init.php";
 
-$radius = new \Cirko\RadiusServer\server\RadiusServer();
-$radius->debugLevel = $config['debug'];
-$radius->load_dictionary();
-$radius->reverse_dictionary();
+$radius = new \Cirko\RadiusServer\server\RadiusServer($config);
 $radius->initialize();
 $radius->radius_run($config);

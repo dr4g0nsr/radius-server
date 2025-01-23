@@ -34,11 +34,11 @@ class File {
     private $loadedAt = NULL;
     private $loadEvery = 60;
 
-    private function loadDB() {
+    private function loadDB(): bool {
         $this->loadedAt = 0;
         $content = file_get_contents(RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'DB' . DIRECTORY_SEPARATOR . 'auth');
         if (!$content) {
-            return;
+            return false;
         }
         $contentNL = explode("\n", $content);
 
@@ -56,6 +56,7 @@ class File {
                 $this->auth[$userName][trim($attr[0])] = trim($attr[1]);
             }
         }
+        return true;
     }
 
     

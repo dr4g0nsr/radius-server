@@ -8,12 +8,8 @@ final class RadiusServerTest extends TestCase
     {
         require __DIR__ . DIRECTORY_SEPARATOR . "/../init.php";
 
-        $radius = new \Cirko\RadiusServer\server\RadiusServer();
-        $radius->debugLevel = $config['debug'];
-        $radius->load_dictionary();
-        $radius->reverse_dictionary();
+        $radius = new \Cirko\RadiusServer\server\RadiusServer($config);
         $radius->initialize();
-        //var_dump($config);
 
         $this->assertSame($config['auth_method'], "File");
     }
@@ -22,10 +18,7 @@ final class RadiusServerTest extends TestCase
     {
         require __DIR__ . DIRECTORY_SEPARATOR . "/../init.php";
 
-        $radius = new \Cirko\RadiusServer\server\RadiusServer();
-        $radius->debugLevel = $config['debug'];
-        $radius->load_dictionary();
-        $radius->reverse_dictionary();
+        $radius = new \Cirko\RadiusServer\server\RadiusServer($config);
         $radius->initialize();
 
         $this->assertSame($radius->radiusCodesReverse['Access-Request'], 1);
@@ -42,10 +35,7 @@ final class RadiusServerTest extends TestCase
 
         require __DIR__ . DIRECTORY_SEPARATOR . "/../init.php";
 
-        $radius = new \Cirko\RadiusServer\server\RadiusServer();
-        $radius->debugLevel = $config['debug'];
-        $radius->load_dictionary();
-        $radius->reverse_dictionary();
+        $radius = new \Cirko\RadiusServer\server\RadiusServer($config);
         $radius->initialize();
         $radius->parseConfig($config);
 
