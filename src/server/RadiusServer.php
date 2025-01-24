@@ -103,7 +103,7 @@ class RadiusServer {
      * @param type $string
      * @return string
      */
-    private function hex_dump($string): string {
+    private function hexDump($string): string {
         $hex = "";
         for ($c = 0; $c < strlen($string); $c++) {
             $hexnum = dechex(ord($string[$c]));
@@ -125,8 +125,8 @@ class RadiusServer {
      * @param string $content Content for dumping
      * @param string $filename Path to file where dump will be written to
      */
-    private function debug_hex_dump($content, $filename = false) {
-        $hex = $this->hex_dump($content);
+    private function debugHexDump($content, $filename = false) {
+        $hex = $this->hexDump($content);
         if ($filename) {
             file_put_contents(__DIR__ . "/" . $filename, $hex);
         } else {
@@ -143,7 +143,7 @@ class RadiusServer {
      * @param string $secret Secret for encrypting the block
      * @return boolean|string Return value - if success it will return created hash
      */
-    private function create_user_password($password, $auth, $secret) {
+    private function CreateUserPassword($password, $auth, $secret) {
         if (strlen($password) == 0) {      // empty?
             return false;
         }
@@ -152,7 +152,7 @@ class RadiusServer {
         } else
         if (strlen($password) < 16) {  // if less than 16 fill with 0
             $password_pack = str_pad($password, 16, chr(0x00));
-            $password_pack_hex = $this->hex_dump($password_pack);
+            $password_pack_hex = $this->hexDump($password_pack);
         } else {
             $password_pack = $password;
         }
@@ -215,21 +215,21 @@ class RadiusServer {
         if (@$attr["CHAP-Challenge"]) { // https://tools.ietf.org/html/rfc2058#section-5.40
             $chapID = $attr['CHAP-Password']['value'][0];
             $encrypted_password = md5($chapID . $password . $attr["CHAP-Challenge"]["value"]);
-            $requested_password = $this->hex_dump(substr($attr["CHAP-Password"]["value"], 1));
+            $requested_password = $this->hexDump(substr($attr["CHAP-Password"]["value"], 1));
             return $requested_password == $encrypted_password;
         } else
         if (@$attr["CHAP-Password"]) {  // https://tools.ietf.org/html/rfc2058#section-5.3
             $chapID = $attr['CHAP-Password']['value'][0];
             $encrypted_password = md5($chapID . $password . $auth);
-            $requested_password = $this->hex_dump(substr($attr["CHAP-Password"]["value"], 1));
+            $requested_password = $this->hexDump(substr($attr["CHAP-Password"]["value"], 1));
             return $requested_password == $encrypted_password;
         } else
         if (@$attr["EAP-Message"]) {
             die("EAP unsupported.");
         } else
         if (@$attr["User-Password"]) {  // https://tools.ietf.org/html/rfc2058#section-5.2
-            $encrypted_password = $this->create_user_password($password, $auth, $this->secret);
-            $requested_password = $this->hex_dump($attr["User-Password"]["value"]);
+            $encrypted_password = $this->CreateUserPassword($password, $auth, $this->secret);
+            $requested_password = $this->hexDump($attr["User-Password"]["value"]);
             return $requested_password == $encrypted_password ;
         } else
         if (@$attr["MS-CHAP-Challenge"]) {
@@ -247,7 +247,7 @@ class RadiusServer {
      * @param string $value Value
      * @return boolean
      */
-    public function set_attribute($attribute, $value) {
+    public function setAttribute($attribute, $value) {
         Log::log("   {$attribute} -> {$value}", RADIUS_INFO);
         switch ($attribute) {
             case "Framed-IP-Address":
@@ -287,7 +287,7 @@ class RadiusServer {
      * @param string $remote_ip Remote IP address where request came from
      * @param string $remote_port Remote port where request was sent to
      */
-    private function process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port) {
+    private function processCode($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port) {
 
         switch ($pkta["code"]) {    // Request code
             case $this->attributes->getCodeReverse("Access-Request"):
@@ -300,14 +300,14 @@ class RadiusServer {
                         if ($attr == 'password') {
                             continue;
                         }
-                        $reply .= $this->set_attribute($attr, $val);
+                        $reply .= $this->setAttribute($attr, $val);
                     }
                     $response_code = $this->radiusCodesReverse["Access-Accept"];   // Accept the request
                     $response_length = 3 + 16 + 1 + strlen($reply);
                     $response_string = pack("CCna16a" . strlen($reply) . "a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $reply, $this->secret);
                     $response_auth = md5($response_string, true);
                     $response_string_binary = pack("CCna16a" . strlen($reply), $response_code, $pkta["id"], $response_length, $response_auth, $reply);
-                    $this->radius_reply($response_string_binary, $remote_ip, $remote_port);
+                    $this->radiusReply($response_string_binary, $remote_ip, $remote_port);
                 } else {
                     // Access-Reject
                     Log::log("Reply: Access-Reject", RADIUS_INFO);
@@ -316,7 +316,7 @@ class RadiusServer {
                     $response_string = pack("CCna16a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $this->secret);
                     $response_auth = md5($response_string, true);
                     $response_string_binary = pack("CCna16", $response_code, $pkta["id"], $response_length, $response_auth);
-                    $this->radius_reply($response_string_binary, $remote_ip, $remote_port);
+                    $this->radiusReply($response_string_binary, $remote_ip, $remote_port);
                 }
                 break;
             case $this->radiusCodesReverse["Accounting-Request"]:
@@ -334,7 +334,7 @@ class RadiusServer {
      * @param int $remote_port Remote port
      * @return boolean True on success, false on error
      */
-    public final function process_request($pkt, $remote_ip, $remote_port) {
+    public final function processRequest($pkt, $remote_ip, $remote_port) {
 
         $pkta = [// make packet structure
             "code" => ord($pkt[0]),
@@ -351,9 +351,9 @@ class RadiusServer {
 
         $auth = substr($pkt, 4, 16);
         $avps = substr($pkt, 20);
-        $attr = $this->attributes->decode_attr($pkta["code"], $avps, $pkta["len"] - 20);
+        $attr = $this->attributes->decodeAttr($pkta["code"], $avps, $pkta["len"] - 20);
         Log::log("Reply: ", RADIUS_INFO);
-        $this->process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port);
+        $this->processCode($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port);
 
         return true;
     }
@@ -367,7 +367,9 @@ class RadiusServer {
     }
 
     private function savePacket(int $id, string $content):void {
-        file_put_contents(__DIR__."/../../packets/packet-".$id.".pkt",$content);
+        if (Log::logLevelmatch(3)) {
+            file_put_contents(__DIR__."/../../packets/packet-".$id.".pkt",$content);
+        }
     }
 
     /**
@@ -377,7 +379,7 @@ class RadiusServer {
      * It is run in dead loop so use CTRL-C to stop it.
      * 
      */
-    public function radius_run(array $config) {
+    public function radiusRun(array $config) {
         $this->parseConfig($config);
         $packet=0;
         do {
@@ -415,7 +417,7 @@ class RadiusServer {
             if ($this->threads) {   // threading exists on server, use it. It's not recommended to do so.
                 $this->runThread();
             } else {
-                $this->process_request($pkt, $remote_ip, $remote_port); // process request
+                $this->processRequest($pkt, $remote_ip, $remote_port); // process request
             }
             $packet++;
         } while ($pkt !== false);   // dead loop, process next packet
@@ -434,7 +436,7 @@ class RadiusServer {
      * @param type $remote_ip
      * @param type $remote_port
      */
-    private function radius_reply($reply, $remote_ip, $remote_port) {
+    private function radiusReply($reply, $remote_ip, $remote_port) {
         socket_sendto($this->socket, $reply, strlen($reply), 0, $remote_ip, $remote_port);
     }
 

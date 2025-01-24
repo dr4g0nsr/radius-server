@@ -19,4 +19,4 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . "init.php";
 
 $radius = new \Cirko\RadiusServer\server\RadiusServer($config);
 $radius->initialize();
-$radius->radius_run($config);
+$radius->radiusRun($config);

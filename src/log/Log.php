@@ -52,6 +52,10 @@ class Log{
     public static function setDebugLevel($level):void {
         self::$debugLevel=$level;
     }
+
+    public static function logLevelmatch($compareLevel): bool {
+        return  $compareLevel<=self::$debugLevel;
+    }
     
     public static function setFile($file):void {
         self::$log_file=$file;

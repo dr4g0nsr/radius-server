@@ -45,7 +45,7 @@ final class RadiusServerTest extends TestCase
         $remote_ip="127.0.0.1";
         $remote_port=1234;
 
-        $r=$radius->process_request($pkt, $remote_ip, $remote_port); // process request
+        $r=$radius->processRequest($pkt, $remote_ip, $remote_port); // process request
 
         $this->assertSame($r, true);
     }

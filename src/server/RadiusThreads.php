@@ -37,7 +37,7 @@ class RadiusThreads extends \Thread {
     public function run() {
         $radius = new \Cirko\RadiusServer\server\RadiusServer($config);
         $radius->initialize();
-        $radius->process_request($this->pkt, $this->remote_ip, $this->remote_port);
+        $radius->processRequest($this->pkt, $this->remote_ip, $this->remote_port);
     }
 
 }

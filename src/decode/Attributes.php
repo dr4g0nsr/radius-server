@@ -36,7 +36,7 @@ class Attributes extends Dictionary {
      * @param type $size
      * @return type
      */
-    public function decode_attr($code, $request, $size): array {
+    public function decodeAttr($code, $request, $size): array {
         $csize = 0;
         while ($csize < $size) {
             if ($code == $this->radiusCodesReverse["Access-Request"]) {
