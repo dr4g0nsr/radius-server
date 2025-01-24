@@ -40,6 +40,16 @@ class RadiusServer {
     private $secret;
     private $authMethod;
     private $time;
+
+    private $requests;
+    private $requests_min;
+    private $requests_max;
+
+    private $threads;
+    private $peer;
+    private $loginInfo;
+
+    private $authClass;
     
     public function __construct($config) {
 
@@ -84,17 +94,6 @@ class RadiusServer {
             $errormsg = socket_strerror($errorcode);
 
             die("Could not bind socket : [$errorcode] $errormsg \n");
-        }
-    }
-
-    /**
-     * Just iterate and inverse to property
-     * 
-     * @param array $attrs Attribute to inverse
-     */
-    private function inverseAttributes($attrs) {
-        foreach ($attrs as $id => $val) {
-            $this->vendorRadiusAttributesReverse[$id] = $val;
         }
     }
 
@@ -291,7 +290,7 @@ class RadiusServer {
     private function process_code($pkta, $pkt, $auth, $attr, $remote_ip, $remote_port) {
 
         switch ($pkta["code"]) {    // Request code
-            case $this->radiusCodesReverse["Access-Request"]:
+            case $this->attributes->getCodeReverse("Access-Request"):
                 $password_match = $this->loginMatch($auth, $attr);
                 if ($password_match) {
                     // Access-Accept
@@ -303,7 +302,7 @@ class RadiusServer {
                         }
                         $reply .= $this->set_attribute($attr, $val);
                     }
-                    $response_code = $this->radiusCodesReverse["Access-Accept"];   //access-accept
+                    $response_code = $this->radiusCodesReverse["Access-Accept"];   // Accept the request
                     $response_length = 3 + 16 + 1 + strlen($reply);
                     $response_string = pack("CCna16a" . strlen($reply) . "a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $reply, $this->secret);
                     $response_auth = md5($response_string, true);
@@ -312,7 +311,7 @@ class RadiusServer {
                 } else {
                     // Access-Reject
                     Log::log("Reply: Access-Reject", RADIUS_INFO);
-                    $response_code = $this->radiusCodesReverse["Access-Reject"];   //access-accept
+                    $response_code = $this->attributes->getCodeReverse("Access-Reject");   // Reject the request
                     $response_length = 3 + 16 + 1;
                     $response_string = pack("CCna16a" . strlen($this->secret), $response_code, $pkta["id"], $response_length, $auth, $this->secret);
                     $response_auth = md5($response_string, true);
@@ -343,7 +342,7 @@ class RadiusServer {
             "len" => (ord($pkt[2]) * 255) + ord($pkt[3]),
         ];
 
-        Log::log("Request: {$this->peer} {$this->radius_codes[$pkta["code"]]} id  {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
+        Log::log("Request: {$this->peer} {$this->attributes->getCode($pkta["code"])} id {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
 
         if (strlen($pkt) < 21) {
             Log::log("Packet less than 21, probalby empty request", RADIUS_INFO);

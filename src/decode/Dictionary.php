@@ -36,7 +36,8 @@ class Dictionary extends Codes
      * 
      * @param array $vendor_radius_attributes Attributes read from dictionary files
      */
-    protected function setup_attributes($vendor_radius_attributes) {
+    protected function setup_attributes($vendor_radius_attributes)
+    {
         foreach ($this->vendorRadiusAttributes as $attr => $vars) {
             if (isset($vars["id"])) {
                 $this->vendorRadiusAttributesReverse[$vars["id"]] = $vars;
@@ -49,6 +50,18 @@ class Dictionary extends Codes
         }
         if (DEBUG) {
             file_put_contents(__DIR__ . "/../../dump_attrs.txt", json_encode($this->vendorRadiusAttributesReverse), FILE_APPEND);
+        }
+    }
+
+    /**
+     * Just iterate and inverse to property
+     * 
+     * @param array $attrs Attribute to inverse
+     */
+    private function inverseAttributes($attrs)
+    {
+        foreach ($attrs as $id => $val) {
+            $this->vendorRadiusAttributesReverse[$id] = $val;
         }
     }
 
@@ -120,4 +133,13 @@ class Dictionary extends Codes
             return false;
         }
     }
+
+    public function getCodeReverse(string $code): int {
+        return (int)$this->radiusCodesReverse[$code];
+    }
+
+    public function getCode(int $code): string {
+        return $this->radius_codes[$code];
+    }
+
 }

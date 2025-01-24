@@ -24,7 +24,6 @@ class RadiusThreads extends \Thread {
     public $pkt;
     public $remote_ip;
     public $remote_port;
-    public $radiusServer = FALSE;
 
     public function __construct($pkt, $remote_ip, $remote_port) {
         $this->pkt = $pkt;
@@ -36,10 +35,9 @@ class RadiusThreads extends \Thread {
      * Run thread (called by start)
      */
     public function run() {
-        $this->radiusServer = new radius_server();
-        $this->radiusServer->load_dictionary();
-        $this->radiusServer->reverse_dictionary();
-        $this->radiusServer->process_request($this->pkt, $this->remote_ip, $this->remote_port);
+        $radius = new \Cirko\RadiusServer\server\RadiusServer($config);
+        $radius->initialize();
+        $radius->process_request($this->pkt, $this->remote_ip, $this->remote_port);
     }
 
 }
