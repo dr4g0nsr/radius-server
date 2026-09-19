@@ -269,7 +269,7 @@ class BaseRadiusServer {
         $this->log("Request: {$this->peer} {$this->radius_codes[$pkta["code"]]} id  {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
 
         // DEBUG: capture the exact raw packet so it can be replayed/analyzed offline
-        // $this->debug_hex_dump($pkt, "raw_packet_capture.hex");
+        //$this->debug_hex_dump($pkt, "raw_packet_capture.hex");
 
         if (strlen($pkt) < 21) {
             $this->log("Packet less than 21, probably empty request", RADIUS_INFO);
@@ -465,8 +465,8 @@ class BaseRadiusServer {
                 "array_value" => $array_value,
             ];
             $csize += $len;
-            if (RADIUS_INFO == $this->debugLevel) {  // debug on, write messages
-                $value = $this->hex_dump($value);
+            if (RADIUS_INFO <= $this->debugLevel) {  // debug on, write messages
+                $value = $this->format_attr_value($type, $value);
             }
             $this->log("   {$type} => {$value}", RADIUS_INFO);
         }
@@ -489,6 +489,85 @@ class BaseRadiusServer {
             $hex .= $hexnum;
         }
         return $hex;
+    }
+
+    /**
+     * Render a decoded attribute value in a human-readable form based on its
+     * type, instead of a raw hex dump. Keeps the existing hex representation
+     * for binary attributes (like CHAP), while making numbers, IP addresses
+     * and MAC-like station IDs easy to read in the request log.
+     *
+     * @param string $type  Attribute name (e.g. "NAS-Port", "CHAP-Challenge")
+     * @param string $value Raw binary value (already stripped of type/len header)
+     * @return string Human-readable representation of the value
+     */
+    protected function format_attr_value(string $type, string $value): string {
+        $len = strlen($value);
+        if ($len === 0) {
+            return "";
+        }
+
+        // 4-byte integer attributes (NAS-Port, NAS-Port-Type, Service-Type,
+        // Framed-Protocol, Session-Timeout, ...). NAS-Port-Type is a small
+        // enum; we still show the raw decimal, which is what operators expect.
+        if ($len === 4 && $this->is_int_attr($type)) {
+            return (string) ((ord($value[0]) << 24) | (ord($value[1]) << 16) | (ord($value[2]) << 8) | ord($value[3]));
+        }
+
+        // 4-byte IPv4 addresses.
+        if ($len === 4 && $this->is_ipv4_attr($type)) {
+            return sprintf("%d.%d.%d.%d", ord($value[0]), ord($value[1]), ord($value[2]), ord($value[3]));
+        }
+
+        // CHAP-Password: first byte is the CHAP id, rest is the 16-byte MD5
+        // digest. Show as "id=XX digest=..." so it's clear which part is which.
+        if ($type === 'CHAP-Password' && $len >= 1) {
+            $id = ord($value[0]);
+            return sprintf("id=%d digest=%s", $id, $this->hex_dump(substr($value, 1)));
+        }
+
+        // MAC-like station IDs: "00:50:56:25:8B:97" is already human-readable.
+        if (preg_match('/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/', $value)) {
+            return strtoupper($value);
+        }
+
+        // Short printable strings (User-Name, Called/Calling-Station-Id,
+        // NAS-Port-Id like "WAN", NAS-Identifier, Filter-Id, ...): show as text.
+        if ($len <= 64 && preg_match('/^[\x20-\x7e]+$/', $value)) {
+            return $value;
+        }
+
+        // Everything else (CHAP-Challenge, EAP-Message, binary blobs,
+        // long or non-printable values): hex.
+        return $this->hex_dump($value);
+    }
+
+    /**
+     * @param string $type Attribute name
+     * @return bool Whether the attribute is a 4-byte integer in the RADIUS dictionary
+     */
+    protected function is_int_attr(string $type): bool {
+        static $int_attrs = [
+            'NAS-Port', 'NAS-Port-Type', 'Service-Type', 'Framed-Protocol',
+            'Session-Timeout', 'Framed-MTU', 'Login-Lifetime', 'Port-Limit',
+            'Acct-Session-Time', 'Acct-Terminate-Cause', 'Acct-Delay',
+            'Acct-Input-Octets', 'Acct-Output-Octets', 'Acct-Input-Packets',
+            'Acct-Output-Packets', 'Acct-Session-Id', 'Acct-Authentic',
+            'Acct-Status-Type', 'Acct-Input-Gigawords', 'Acct-Output-Gigawords',
+            'Idle-Timeout', 'Login-Lifetime',
+        ];
+        return in_array($type, $int_attrs, true);
+    }
+
+    /**
+     * @param string $type Attribute name
+     * @return bool Whether the attribute holds a 4-byte IPv4 address
+     */
+    protected function is_ipv4_attr(string $type): bool {
+        static $ipv4_attrs = [
+            'Framed-IP-Address', 'NAS-IP-Address',
+        ];
+        return in_array($type, $ipv4_attrs, true);
     }
 
     /**

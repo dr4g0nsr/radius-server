@@ -6,6 +6,15 @@ A PHP-based RADIUS server implementation designed for ISP administration and net
 
 This is a lightweight, PHP-based RADIUS server that provides authentication services for network access. It's designed to work with existing PHP applications that need to communicate with RADIUS databases while offering flexibility to implement custom authentication systems.
 
+## Supported Authentication Protocols
+
+This server supports only **CHAP** and **PAP** authentication:
+
+- **PAP** — via the `User-Password` attribute (RFC 2865 §5.2)
+- **CHAP** — via the `CHAP-Password` / `CHAP-Challenge` attributes (RFC 2865 §5.3, §5.40)
+
+**MS-CHAP v1 and MS-CHAP v2 are NOT supported.** Requests carrying `MS-CHAP-Challenge` (or MS-CHAPv2 attributes) are rejected, and EAP is likewise unsupported. If your access device is configured to use MS-CHAP, switch it to CHAP or PAP instead.
+
 ## Compatibility
 
 Tested and works on PHP 8.1 and below. Should work on all PHP 7.x versions as well. PHP 5.x and earlier are not recommended due to security and performance concerns.
