@@ -9,7 +9,7 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2026 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
@@ -30,11 +30,30 @@ namespace auth;
  */
 class File {
 
+    /**
+     * Authentication data loaded from file
+     * @var array
+     */
     private $auth = [];
-    private $loadedAt = NULL;
+    
+    /**
+     * Time when auth data was last loaded
+     * @var float|null
+     */
+    private $loadedAt = null;
+    
+    /**
+     * How often to reload the auth database (in seconds)
+     * @var int
+     */
     private $loadEvery = 60;
 
-    private function loadDB() {
+    /**
+     * Load authentication database from file
+     * 
+     * @return void
+     */
+    private function loadDB(): void {
         $this->loadedAt = 0;
         $content = file_get_contents(RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'DB' . DIRECTORY_SEPARATOR . 'auth');
         if (!$content) {
@@ -58,6 +77,12 @@ class File {
         }
     }
 
+    /**
+     * Get login information for a user
+     * 
+     * @param string $username Username to look up
+     * @return array|bool Login information if found, false otherwise
+     */
     public function getLoginInfo(string $username) {
         // (Re)Loads auth db if empty or outdated
         if (empty($this->auth) || $this->loadedAt < microtime(true) - $this->loadEvery) {

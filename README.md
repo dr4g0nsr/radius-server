@@ -1,26 +1,39 @@
-# RADIUS-SERVER
+# RADIUS Server
 
-This is PHP-based radius server.
+A PHP-based RADIUS server implementation designed for ISP administration and network authentication.
 
-It's tested and works on PHP up to 8.1, it should work on all 7.X as well, I do not recommend to use 5.X and earlier.
+## Overview
 
-**Why use php based radius?**
+This is a lightweight, PHP-based RADIUS server that provides authentication services for network access. It's designed to work with existing PHP applications that need to communicate with RADIUS databases while offering flexibility to implement custom authentication systems.
 
-Becouse many applictions are written in PHP that communicate with radius DB to update and synchronize own DB. This is unnecessary as you can override methods to implement your own system for logging the users.
+## Compatibility
 
-**Which applications is suited to use this?**
+Tested and works on PHP 8.1 and below. Should work on all PHP 7.x versions as well. PHP 5.x and earlier are not recommended due to security and performance concerns.
 
-Mainly ISP administration program. Script can do not only login like radius do but many more, like disconnecting users at some condition. You can also implement your system.
+## Why Use a PHP-Based RADIUS Server?
 
-**Isn't this very slow to do in PHP?**
+Many applications are written in PHP that communicate with RADIUS databases to update and synchronize their own databases. This approach is unnecessary when using this server, as you can override methods to implement your own authentication system for logging users.
 
-In my test machine which is i5 i can process 30.000 req/sec on one core and using PHP7. In PHP5 i get around 7000. This should be enough for most people as your bottleneck will probalby by DB not PHP.
+## Suitable Applications
 
-**Config file**
+This server is primarily suited for ISP administration programs. Beyond simple login functionality, it can perform additional tasks such as:
+- Disconnecting users under certain conditions
+- Implementing custom authentication logic
+- Extending beyond basic RADIUS functionality
 
-In root of the project in config.php you can configure some stuff:
+## Performance
 
-```
+Performance testing on an i5 processor shows:
+- 30,000 requests per second on one core with PHP 7.x
+- 7,000 requests per second with PHP 5.x
+
+This should be sufficient for most use cases, as database operations typically become the bottleneck rather than PHP processing.
+
+## Configuration
+
+Configuration is handled through the `config.php` file in the project root:
+
+```php
 const DEBUG = false;
 $config = [
     'serverip' => '0.0.0.0',
@@ -32,6 +45,10 @@ $config = [
 ];
 ```
 
-Here auth_method is authentication method used to provide auth and attributes. You need to have class with same name if you want to change this. Your class should contain implementation of specific source like database. "File" is simple file reader that is refreshed every 60 seconds, it is used as example how to do this. I recommend using redis for this purpose as it is very fast and simple.
+### Authentication Methods
 
-You class should exists in classes/auth directory.
+The `auth_method` parameter specifies the authentication method used to provide authentication and attributes. To use a custom authentication method, you need to create a class with the same name. Your class should contain implementation for a specific authentication source such as database.
+
+The default "File" authentication method is a simple file reader that refreshes every 60 seconds. It serves as an example of how to implement custom authentication methods. For production environments, we recommend using Redis due to its speed and simplicity.
+
+Custom authentication classes should be placed in the `classes/auth` directory.
