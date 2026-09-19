@@ -269,7 +269,7 @@ class BaseRadiusServer {
         $this->log("Request: {$this->peer} {$this->radius_codes[$pkta["code"]]} id  {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
 
         // DEBUG: capture the exact raw packet so it can be replayed/analyzed offline
-        $this->debug_hex_dump($pkt, "raw_packet_capture.hex");
+        // $this->debug_hex_dump($pkt, "raw_packet_capture.hex");
 
         if (strlen($pkt) < 21) {
             $this->log("Packet less than 21, probably empty request", RADIUS_INFO);

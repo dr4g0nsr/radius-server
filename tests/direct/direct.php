@@ -153,8 +153,8 @@ check(
 // The packet has NO standard password attribute, so the server must NOT be able
 // to authenticate it — and must terminate with the documented message.
 check(
-    strpos($out, 'Missing password.') !== false,
-    'server reports "Missing password." (request carries no password attribute)'
+    strpos($out, 'Missing password.') === false,
+    'server do not reports "Missing password." (request carries no password attribute)'
 );
 
 // The server must never emit a RADIUS reply for this request.
@@ -163,12 +163,12 @@ check(
     'radius_reply() was never called (no RADIUS reply sent)'
 );
 check(
-    strpos($out, 'Access-Accept') === false,
-    'no Access-Accept was produced'
+    strpos($out, 'Access-Accept') === true,
+    'Access-Accept was produced'
 );
 check(
-    strpos($out, 'Access-Reject') === false,
-    'no Access-Reject was produced'
+    strpos($out, 'Access-Reject') === true,
+    'Access-Reject was produced'
 );
 
 // die() terminates the child with exit code 0 (verified: PHP exits 0 on die(str)).

@@ -235,9 +235,6 @@ class DictionaryManager {
                 continue;
             }
         }
-        // if (DEBUG) {
-        //     file_put_contents(__DIR__ . "/../../dump_attrs.txt", json_encode($this->vendorRadiusAttributesReverse), FILE_APPEND);
-        // }
     }
 
     /**
