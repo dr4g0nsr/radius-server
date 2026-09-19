@@ -39,6 +39,18 @@ class BaseRadiusServer {
      * @var string|null
      */
     protected $peer;
+
+    protected $radiusCodesReverse;
+
+    protected $radius_codes;
+
+    protected $radius_attributes;
+
+    /**
+     * Accounting packet attribute definitions
+     * @var array
+     */
+    protected $radius_acc_atributes = [];
     
     /**
      * Receive buffer size
@@ -256,6 +268,9 @@ class BaseRadiusServer {
 
         $this->log("Request: {$this->peer} {$this->radius_codes[$pkta["code"]]} id  {$pkta["id"]} len {$pkta["len"]}", RADIUS_CONNECTION);
 
+        // DEBUG: capture the exact raw packet so it can be replayed/analyzed offline
+        $this->debug_hex_dump($pkt, "raw_packet_capture.hex");
+
         if (strlen($pkt) < 21) {
             $this->log("Packet less than 21, probably empty request", RADIUS_INFO);
             return false;
@@ -281,6 +296,7 @@ class BaseRadiusServer {
      */
     public function radius_run(array $config): void {
         $this->parseConfig($config);
+        $last_requests=0;
         do {
             if ($this->time == 0) {
                 $this->time = microtime(true);
@@ -417,32 +433,28 @@ class BaseRadiusServer {
                 $this->radiusCodesReverse = array_flip($this->radius_codes);
             }
             
-            $type = null; // Initialize to prevent undefined variable warnings
+            $attrCode = ord($request[$csize]);
             if ($code == $this->radiusCodesReverse["Access-Request"]) {
-                $type = $this->radius_attributes[ord($request[$csize])];
-            } else
-            if ($code == $this->radiusCodesReverse["Accounting-Request"]) {
-                $type = $this->radius_acc_atributes[ord($request[$csize])];
+                $type = $this->radius_attributes[$attrCode] ?? ("Unknown-Attribute-{$attrCode}");
+            } elseif ($code == $this->radiusCodesReverse["Accounting-Request"]) {
+                $type = $this->radius_acc_atributes[$attrCode] ?? ("Unknown-Attribute-{$attrCode}");
             } else {
-                // For unknown packet types, we still try to decode the attribute type
-                $attrCode = ord($request[$csize]);
-                if (isset($this->radius_attributes[$attrCode])) {
-                    $type = $this->radius_attributes[$attrCode];
-                } else if (isset($this->radius_acc_atributes[$attrCode])) {
-                    $type = $this->radius_acc_atributes[$attrCode];
-                } else {
-                    $type = "Unknown-Attribute-{$attrCode}";
-                }
+                // For unknown packet types, try to still name the attribute
+                $type = $this->radius_attributes[$attrCode]
+                    ?? ($this->radius_acc_atributes[$attrCode] ?? ("Unknown-Attribute-{$attrCode}"));
                 $this->log("Unknown packet type {$code}, decoding as attribute: {$type}", RADIUS_BASIC);
             }
 
-            // Handle case where type might be null (should not happen but just in case)
-            if ($type === null) {
-                $csize += 2; // Skip this entry and continue
-                continue;
-            }
-
+            // IMPORTANT: always skip the whole attribute (type + length + value) by its
+            // declared length. Advancing by anything other than $len misaligns the
+            // decode cursor and corrupts every attribute that follows (this was the
+            // cause of CHAP-Password / User-Password being lost on multi-attribute
+            // requests such as Mikrotik).
             $len = ord($request[$csize + 1]);
+            if ($len < 2) {  // malformed length: stop to avoid an infinite loop
+                $this->log("Malformed attribute length {$len} at offset {$csize}, stopping decode", RADIUS_INFO);
+                break;
+            }
             $value = substr($request, $csize + 2, $len - 2);
             $array_value = [];
             for ($c = 0; $c < strlen($value); $c++) {
@@ -599,13 +611,21 @@ class BaseRadiusServer {
     /**
      * Check login
      * 
+     * Stores the full login info (attributes for the Access-Accept reply)
+     * in $this->loginInfo and returns the user's password.
+     * 
      * @param string $username Username to check
      * @return string|bool Password or false if not found
      */
     protected function loginCheck(string $username) {
         $authClass = $this->getAuthClass();
-        if ($authClass !== null && method_exists($authClass, 'checkLogin')) {
-            return $authClass->checkLogin($username);
+        if ($authClass !== null && method_exists($authClass, 'getLoginInfo')) {
+            $this->loginInfo = $authClass->getLoginInfo($username);
+            if ($this->loginInfo === false || !is_array($this->loginInfo)) {
+                $this->loginInfo = null;
+                return false;
+            }
+            return $this->loginInfo['password'] ?? false;
         }
         return false;
     }

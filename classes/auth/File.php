@@ -20,13 +20,10 @@ namespace auth;
  *
  * Example class how you can use simple file checking for authentication
  *
- * @category   Boilerplate
- * @package    Lumen-Boilerplate
- * @version    Release: @package_version@
- * @link       http://pear.php.net/package/Lumen-Boilerplate
- * @see        NetOther, Net_Sample::Net_Sample()
- * @since      Class available since Release 1.2.0
- * @deprecated Class deprecated in Release 2.0.0
+ * @version 1.0
+ * @category radius
+ * @package radius-server
+ * @author Dragutin Cirkovic <2026>
  */
 class File {
 
@@ -49,12 +46,21 @@ class File {
     private $loadEvery = 60;
 
     /**
+     * Constructor - loads the authentication database from file
+     * 
+     * @return void
+     */
+    public function __construct() {
+        $this->loadDB();
+    }
+
+    /**
      * Load authentication database from file
      * 
      * @return void
      */
     private function loadDB(): void {
-        $this->loadedAt = 0;
+        $this->auth = [];
         $content = file_get_contents(RADIUS_SERVER_BASE . DIRECTORY_SEPARATOR . 'DB' . DIRECTORY_SEPARATOR . 'auth');
         if (!$content) {
             return;
@@ -75,6 +81,7 @@ class File {
                 $this->auth[$userName][trim($attr[0])] = trim($attr[1]);
             }
         }
+        $this->loadedAt = microtime(true);
     }
 
     /**
@@ -88,7 +95,7 @@ class File {
         if (empty($this->auth) || $this->loadedAt < microtime(true) - $this->loadEvery) {
             $this->loadDB();
         }
-        return $this->auth[$username];
+        return $this->auth[$username] ?? false;
     }
 
 }
