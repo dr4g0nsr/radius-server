@@ -9,7 +9,7 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2026 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
@@ -235,9 +235,9 @@ class DictionaryManager {
                 continue;
             }
         }
-        if (DEBUG) {
-            file_put_contents(__DIR__ . "/../../dump_attrs.txt", json_encode($this->vendorRadiusAttributesReverse), FILE_APPEND);
-        }
+        // if (DEBUG) {
+        //     file_put_contents(__DIR__ . "/../../dump_attrs.txt", json_encode($this->vendorRadiusAttributesReverse), FILE_APPEND);
+        // }
     }
 
     /**

@@ -1,0 +1,19 @@
+{
+    "name": "cirko/radius-server",
+    "description": "A PHP-based RADIUS server implementation",
+    "type": "project",
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "server\\": "classes/server/",
+            "auth\\": "classes/auth/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}

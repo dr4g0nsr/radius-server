@@ -62,6 +62,16 @@ class RadiusServer extends \server\base\BaseRadiusServer {
         // Load dictionaries
         $this->dictionaryManager->load_dictionary();
         $this->dictionaryManager->reverse_dictionary();
+        
+        // Copy the loaded attributes to the parent class properties for use in BaseRadiusServer methods
+        if (isset($this->dictionaryManager->radius_attributes)) {
+            $this->radius_attributes = $this->dictionaryManager->radius_attributes;
+        }
+        
+        // Initialize radiusCodesReverse for use in BaseRadiusServer methods
+        if (!isset($this->radiusCodesReverse) || empty($this->radiusCodesReverse)) {
+            $this->radiusCodesReverse = array_flip($this->radius_codes);
+        }
     }
 
     /**

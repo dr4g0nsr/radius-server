@@ -9,7 +9,7 @@
  * send a note to license@php.net so we can mail you a copy immediately.
  *
  * @author     Dragutin Cirkovic <dragonmen@gmail.com>
- * @copyright  2021-2021 CirkoTech
+ * @copyright  2021-2026 CirkoTech
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
@@ -147,6 +147,25 @@ class BaseRadiusServer {
         // Check if socket extension is enabled - required for UDP communication
         if (!function_exists("socket_create")) {    
             die("ERROR: socket_create does not exist, please include socket extension (php_sockets.dll or php_sockets.so)");
+        }
+        
+        // Initialize radiusCodesReverse if not already done (in case it's called directly)
+        // Ensure radius_codes is properly initialized before flipping
+        if (!isset($this->radius_codes) || !is_array($this->radius_codes)) {
+            $this->radius_codes = [
+                1 => "Access-Request",
+                2 => "Access-Accept", 
+                3 => "Access-Reject",
+                4 => "Accounting-Request",
+                5 => "Accounting-Response",
+                11 => "Access-Challenge",
+                12 => "Status-Server",
+                13 => "Status-Client",
+            ];
+        }
+        
+        if (!isset($this->radiusCodesReverse) || empty($this->radiusCodesReverse)) {
+            $this->radiusCodesReverse = array_flip($this->radius_codes);
         }
     }
 
@@ -392,13 +411,35 @@ class BaseRadiusServer {
         $csize = 0;
         $attr = [];
         while ($csize < $size) {
+            // Ensure radiusCodesReverse is initialized before use
+            if (!isset($this->radiusCodesReverse) || empty($this->radiusCodesReverse)) {
+                // Initialize if not already done - this should normally be done by the child class
+                $this->radiusCodesReverse = array_flip($this->radius_codes);
+            }
+            
+            $type = null; // Initialize to prevent undefined variable warnings
             if ($code == $this->radiusCodesReverse["Access-Request"]) {
                 $type = $this->radius_attributes[ord($request[$csize])];
             } else
             if ($code == $this->radiusCodesReverse["Accounting-Request"]) {
                 $type = $this->radius_acc_atributes[ord($request[$csize])];
             } else {
-                $this->log("Unknown packet type {$code}", RADIUS_BASIC);
+                // For unknown packet types, we still try to decode the attribute type
+                $attrCode = ord($request[$csize]);
+                if (isset($this->radius_attributes[$attrCode])) {
+                    $type = $this->radius_attributes[$attrCode];
+                } else if (isset($this->radius_acc_atributes[$attrCode])) {
+                    $type = $this->radius_acc_atributes[$attrCode];
+                } else {
+                    $type = "Unknown-Attribute-{$attrCode}";
+                }
+                $this->log("Unknown packet type {$code}, decoding as attribute: {$type}", RADIUS_BASIC);
+            }
+
+            // Handle case where type might be null (should not happen but just in case)
+            if ($type === null) {
+                $csize += 2; // Skip this entry and continue
+                continue;
             }
 
             $len = ord($request[$csize + 1]);
